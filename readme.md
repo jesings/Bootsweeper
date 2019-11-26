@@ -20,3 +20,17 @@ In order to run the program, you must have the qemu or bochs emulator installed 
 | F | Toggle `F`lag on tile |
 | Arrow Keys | Move cursor |
 | Any other key | Uncover tile |
+
+## Also check out 
+
+https://gitlab.com/blevy/boot-sector-minesweeper
+
+This is another minesweeper clone in the bootsector, it's got some interesting differences to this version, please check it out!
+
+https://github.com/nanochess/bootOS
+
+This is a program that runs other boot sector programs, and at the bottom of the readme there is a list of other boot sector games.
+
+https://www.youtube.com/watch?v=1UzTf0Qo37A
+
+Great video on boot sector games
