@@ -1,0 +1,8 @@
+megs: 32
+romimage: file=/usr/share/bochs/BIOS-bochs-latest, address=0xfffe0000, options=fastboot
+vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
+floppya: 1_44=mine.bin, status=inserted
+boot: floppy
+log: /dev/null
+mouse: enabled=0
+display_library: x, options="gui_debug"
