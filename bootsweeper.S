@@ -1,16 +1,12 @@
 .code16
+#60 free bytes to play with
 .global _start
 #16x16 board, each tile is a single bit, mine or not
 .data
     x: .short 0
     y: .byte 0
-#The first byte here is technically part of y, but I use it here to simplify memeory access
+#The first byte here is technically part of y, but I use it here to simplify memory access
     minecolors: .byte 0, 0x79, 0x72, 0x74, 0x71, 0x76, 0x73, 0x78
-    padding:
-    .zero 2#padding to simplify what checking is necessary
-    board:
-    .zero 32
-    .zero 2#padding to simplify what checking is necessary
 .text
 .macro getrand #Credit goes to https://b2d-f9r.blogspot.com/2010/08/16-bit-xorshift-rng-now-with-more.html for the xorshift algorithm
 #static uint16_t x=1,y=1;
@@ -34,6 +30,10 @@
 
 _start:
     xorw %ax, %ax
+    pushw %ax
+    movw %sp, %bp
+    sub $32, %sp
+    pushw %ax
     movw %ax, %ds
     movb $0x02, %ah 
     int $0x1A #Read RTC value
@@ -54,11 +54,10 @@ newgame:
     int $0x10 #print out 16 dummy characters for each row
     getrand
     andw x, %cx #And 2 random-ish numbers, making it so that on average 25% of tiles will be mines
-    leaw board, %bx
     movzxb %dh, %di
     subw $0x5, %di#di is used for index in 16 bit
     shlw %di
-    movw %cx, (%bx,%di)#Populate row of board with 16 bits stating mine value for each tile
+    movw %cx, (%bp,%di)#Populate row of board with 16 bits stating mine value for each tile
     incb %dh
     cmpb $21, %dh
     jl rows
@@ -68,15 +67,15 @@ newgame:
     movb $0x02, %ah
     int $0x10#Set cursor back to the beginning of the baord
     gameloop:
-#Loop until input, this is a busy loop, however it's running as a boot sector program so go away, I don't need your criticism
-    movb $0, %ah
+#Loop until input, this is a busy loop, however it's running as a boot sector program so it's the way to go
+    xor %ah, %ah
     int $0x16 #Get input status (input key in %ah)
     testb %ah, %ah
     jz gameloop
-    cmpb $0x4b, %ah
-    je left_arrow
     cmpb $0x48, %ah
     je up_arrow
+    cmpb $0x4b, %ah
+    je left_arrow
     cmpb $0x4d, %ah
     je right_arrow
     cmpb $0x50, %ah
@@ -86,6 +85,7 @@ newgame:
     cmpb $0x13, %ah
     je newgame #If r is pressed, reset board
 #Else for any other key, uncover the tile
+#Test if tile is a number, if it is, go to chording routine
     pusha
     call uncover1
     jnz lose #If tile is not a mine, populate it
@@ -115,7 +115,7 @@ newgame:
     subb $2, %dl
     right_arrow:
     incb %dl
-    dec %dh
+    decb %dh
     down_arrow:
     addb $2, %dh
     up_arrow:
@@ -150,51 +150,49 @@ newgame:
     ret
 
 tileval: #Add 1 to SI if the tile at coord (around cursor) is a mine, else add 0
-    andw %bp, %cx
+    andw %bx, %cx
     movw %cx, %ax
     bsrw %ax, %cx
     shrw %cl, %ax
     addw %ax, %si
     ret
 sidebatch:
-    movw -2(%bx,%di), %cx #Top
+    movw -2(%bp,%di), %cx #Top
     call tileval
-    movw (%bx,%di), %cx #Middle
+    movw (%bp,%di), %cx #Middle
     call tileval
-    movw 2(%bx,%di), %cx #Bottom
+    movw 2(%bp,%di), %cx #Bottom
     call tileval
     ret
 uncover1: #Retrieve row of board, location of tile at cursor in that 16 bit row, if the tile is a mine, prepare to do something
     subw $0x050C, %dx
-    leaw board, %bx
     movzxb %dh, %di
     shlw %di
-    movw (%bx, %di), %bp
     movw $1, %ax
     movb %dl, %cl
     shlw %cl, %ax
-    testw %bp, %ax
+    testw (%bp, %di), %ax
     ret
 uncover2: #Calculate adjacent mines for tile at cursor, keeping in mind edge cases
     xorw %si, %si
-    movw $1, %bp
-    shlw %cl, %bp
+    movw $1, %bx
+    shlw %cl, %bx
     call sidebatch#because center square must be 0 (not a mine), this is okay
     test %dl, %dl
     jz noleftsq
-    shrw %bp
+    shrw %bx
     call sidebatch
-    shlw %bp
+    shlw %bx
     cmp $0xF, %dl
     je norightsq
     noleftsq:
-    shlw %bp
+    shlw %bx
     call sidebatch
     norightsq:
-    movw %si, %es #You may be thinking: "WAIT @jesings, es is a SEGMENT REGISTER? You can't use it like a normal register!!!!
-    #My response? A) You can't tell me what to do  B) It saves me a few bytes because it isn't affected by popa C) There's no far pointer addressing necessary so what's it gonna do?
+    movw %si, %es #I don't care that this is a segment register, it works to store stuff in and I don't need segmentation
     ret
 uncover3: #Print correct character for tile at cursor, if it is 0 call the floodfill routine
+#Test if uncovered first
     movw %es, %ax
     movb $0x09, %ah
     movw $1, %cx
@@ -202,10 +200,10 @@ uncover3: #Print correct character for tile at cursor, if it is 0 call the flood
     jnz nonzero
 #If we find a zero tile, we need to uncover all non-mine tiles clustered around it
     movb $0x20, %al
-    movw $0x0070, %bx
+    movw $0x70, %bx
     int $0x10
     call floodfill
-    movb $0x02, %ah
+    movb $2, %ah
     int $0x10
     ret
     nonzero:
@@ -218,7 +216,7 @@ uncover3: #Print correct character for tile at cursor, if it is 0 call the flood
     ret
 putmine: #Print mine character at cursor
     movw $0x092A, %ax
-    movw $0x0074, %bx
+    movw $0x74, %bx
     movw $1, %cx
     int $0x10
     ret
@@ -236,16 +234,16 @@ putnum: #Run through uncover routine, printing a mine if encountered (not applic
     ret
 floodfill:
     xorb %bh, %bh
-    movb $0xff, %ch
+    movb $-1, %ch
     ffl1:
-    movb $0xff, %cl
+    movb $-1, %cl
     ffl2:
     pusha
     addb %cl, %dl
     addb %ch, %dh
-    movb $0x02, %ah
+    movb $0x2, %ah
     int $0x10 #Move cursor to each adjacent tile
-    movb $0x08, %ah
+    movb $0x8, %ah
     int $0x10
     cmpb $0xB1, %al #If current tile is not unexplored (or is flagged), do not explore/recurse
     jne invalidtile
@@ -253,9 +251,9 @@ floodfill:
     invalidtile:
     popa
     incb %cl
-    cmpb $0x1, %cl
-    jle ffl2
+    cmp $2, %cl
+    jne ffl2
     incb %ch
-    cmpb $0x1, %ch
-    jle ffl1
+    cmp $2, %ch
+    jne ffl1
     ret
