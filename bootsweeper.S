@@ -1,32 +1,27 @@
-.code16
 #60 free bytes to play with
 .global _start
-#16x16 board, each tile is a single bit, mine or not
-.data
-    x: .short 0
-    y: .byte 0
-#The first byte here is technically part of y, but I use it here to simplify memory access
-    minecolors: .byte 0, 0x79, 0x72, 0x74, 0x71, 0x76, 0x73, 0x78
-.text
+.code16
 .macro getrand #Credit goes to https://b2d-f9r.blogspot.com/2010/08/16-bit-xorshift-rng-now-with-more.html for the xorshift algorithm
 #static uint16_t x=1,y=1;
 #uint16_t t=(x^(x<<5)); 
-    movw x, %cx
+    movw (0x7df3), %cx
     shlw $5, %cx
-    xorw x, %cx
+    xorw (0x7df3), %cx
 #x=y;
-    movw y, %ax
-    movw %ax, x
+    movw (0x7df5), %ax
+    movw %ax, (0x7df3)
 #return y=(y^(y>>1))^(t^(t>>3));
     shrw %ax
-    xorw y, %ax
+    xorw (0x7df5), %ax
     movw %cx, %bx
     shrw $3, %bx
     xorw %bx, %cx
     xorw %ax, %cx
-    movw %cx, y
+    movw %cx, (0x7df5)
 #Random number is now in %cx
 .endm
+#16x16 board, each tile is a single bit, mine or not
+.text
 
 _start:
     xorw %ax, %ax
@@ -37,8 +32,8 @@ _start:
     movw %ax, %ds
     movb $0x02, %ah 
     int $0x1A #Read RTC value
-    movw %cx, x #Seed RNG
-    movw %dx, y #Seed RNG
+    movw %cx, (0x7df3) #Seed RNG
+    movw %dx, (0x7df5) #Seed RNG
 newgame:
 #initialize screen
     xorw %ax, %ax
@@ -53,7 +48,9 @@ newgame:
     movw $0xAB1, %ax
     int $0x10 #print out 16 dummy characters for each row
     getrand
-    andw x, %cx #And 2 random-ish numbers, making it so that on average 25% of tiles will be mines
+    mov %cx, %si
+    getrand
+    andw %si, %cx #And 2 random-ish numbers, making it so that on average 25% of tiles will be mines
     movzxb %dh, %di
     subw $0x5, %di#di is used for index in 16 bit
     shlw %di
@@ -207,7 +204,7 @@ uncover3: #Print correct character for tile at cursor, if it is 0 call the flood
     int $0x10
     ret
     nonzero:
-    leaw minecolors, %bx
+    leaw (0x7df6), %bx
     movzx %al, %di
     movb (%bx, %di), %bl
     xorb %bh, %bh

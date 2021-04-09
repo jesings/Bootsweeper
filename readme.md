@@ -10,7 +10,7 @@ The game features stunning 16 color text mode graphics, colored numbers, cursor 
 
 ## How do I play?
 
-In order to run the program, you must have the qemu, bochs, or DOSBox emulator installed (if you want to use a different emulator, feel free to configure that on your own). To run with qemu, simply use `make` and the program will compile and run! To run with bochs, use `make bochsmine` and then type `c` into the bottom input on the debug window. For DOSBox, run `dosboxmine` and then in the DOSBox command prompt type `boot mine.bin`.
+In order to run the program, you must have the qemu, bochs, or DOSBox emulator installed (if you want to use a different emulator, feel free to configure that on your own). To run with qemu, simply use `make` and the program will compile and run! To run with bochs, use `make bochsmine` and then type `c` into the bottom input on the debug window. For DOSBox, run `dosboxmine` and then in the DOSBox command prompt, mount your host system directory as the C drive, go to the C drive, and `boot mine.bin`.
 
 NOTE: In order to get arrow keys support on DOSBox (on my linux system), I needed to change usescancodes to false in ~/.dosbox/dosbox-0.74-3.conf (replace 0.74-3 with your version number).
 
@@ -26,9 +26,9 @@ NOTE: In order to get arrow keys support on DOSBox (on my linux system), I neede
 
 ## Also check out 
 
-https://gitlab.com/blevy/boot-sector-minesweeper
+https://github.com/io12/bootmine
 
-This is another minesweeper clone in the bootsector, it's got some interesting differences to this version, please check it out!
+This is another minesweeper clone in the bootsector, it's got some interesting differences to this version (being 40x25, a slightly easier difficulty, it makes use of rdtsc), please check it out!
 
 https://github.com/nanochess/bootOS
 

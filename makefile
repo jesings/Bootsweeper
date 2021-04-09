@@ -6,4 +6,5 @@ dosboxmine: mine
 	dosbox
 mine:
 	as bootsweeper.S -o mine.o
-	ld -o mine.bin --oformat binary -e _start mine.o -T miner.ld
+	strip --remove-section=.note.gnu.property mine.o
+	ld -o mine.bin --oformat binary mine.o -T miner.ld
